@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -82,7 +83,7 @@ fun DropdownMenuDemo() {
         contentAlignment = Alignment.TopCenter
     ) {
         val itemCount = items.size
-        val state = rememberMenuState(itemCount, -1)
+        val state = rememberMenuState(itemCount, -1, items)
 
 //        LaunchedEffect(Unit) {
 //            delay(500)
@@ -128,6 +129,7 @@ fun DropdownMenuDemo() {
                 items.forEachIndexed { index, item ->
                     MenuItem(
                         modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp))
+                            .focusable()
                             .focusRequester(state.focusRequesters[index]),
                         onClick = { state.selectedIndex = index },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),

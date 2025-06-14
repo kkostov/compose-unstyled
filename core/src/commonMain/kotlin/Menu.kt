@@ -7,7 +7,8 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.*
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -123,13 +124,15 @@ public fun Menu(state: MenuState, modifier: Modifier = Modifier, content: @Compo
 }
 
 @Stable
-public class MenuState(itemCount: Int, selectedIndex: Int, expanded: Boolean = false) {
+public class MenuState(itemCount: Int, selectedIndex: Int, labels: List<String>, expanded: Boolean = false) {
     public var expanded: Boolean by mutableStateOf(expanded)
     internal val menuFocusRequester = FocusRequester()
     internal var currentFocusManager by mutableStateOf<FocusManager?>(null)
     internal var hasMenuFocus by mutableStateOf(false)
 
     var focusRequesters = List(itemCount) {  FocusRequester() }
+    
+    var labels by mutableStateOf(labels)
 
     var selectedIndex by mutableStateOf(selectedIndex)
 
@@ -139,8 +142,8 @@ public class MenuState(itemCount: Int, selectedIndex: Int, expanded: Boolean = f
 }
 
 @Composable
-public fun rememberMenuState(itemCount: Int, selectedIndex: Int, expanded: Boolean = false): MenuState {
-    return remember { MenuState(itemCount, selectedIndex, expanded) }
+public fun rememberMenuState(itemCount: Int, selectedIndex: Int, labels: List<String>, expanded: Boolean = false): MenuState {
+    return remember { MenuState(itemCount, selectedIndex, labels, expanded) }
 }
 
 /**
@@ -252,6 +255,52 @@ internal data class MenuContentPositionProvider(val density: Density, val alignm
         return IntOffset(x, y)
     }
 }
+fun KeyEvent.getInputChar(): Char? {
+    if (type != KeyEventType.KeyDown) return null
+    val shift = isShiftPressed
+    return when (key) {
+        Key.A -> if (shift) 'A' else 'a'
+        Key.B -> if (shift) 'B' else 'b'
+        Key.C -> if (shift) 'C' else 'c'
+        Key.D -> if (shift) 'D' else 'd'
+        Key.E -> if (shift) 'E' else 'e'
+        Key.F -> if (shift) 'F' else 'f'
+        Key.G -> if (shift) 'G' else 'g'
+        Key.H -> if (shift) 'H' else 'h'
+        Key.I -> if (shift) 'I' else 'i'
+        Key.J -> if (shift) 'J' else 'j'
+        Key.K -> if (shift) 'K' else 'k'
+        Key.L -> if (shift) 'L' else 'l'
+        Key.M -> if (shift) 'M' else 'm'
+        Key.N -> if (shift) 'N' else 'n'
+        Key.O -> if (shift) 'O' else 'o'
+        Key.P -> if (shift) 'P' else 'p'
+        Key.Q -> if (shift) 'Q' else 'q'
+        Key.R -> if (shift) 'R' else 'r'
+        Key.S -> if (shift) 'S' else 's'
+        Key.T -> if (shift) 'T' else 't'
+        Key.U -> if (shift) 'U' else 'u'
+        Key.V -> if (shift) 'V' else 'v'
+        Key.W -> if (shift) 'W' else 'w'
+        Key.X -> if (shift) 'X' else 'x'
+        Key.Y -> if (shift) 'Y' else 'y'
+        Key.Z -> if (shift) 'Z' else 'z'
+        Key.Zero -> '0'
+        Key.One -> '1'
+        Key.Two -> '2'
+        Key.Three -> '3'
+        Key.Four -> '4'
+        Key.Five -> '5'
+        Key.Six -> '6'
+        Key.Seven -> '7'
+        Key.Eight -> '8'
+        Key.Nine -> '9'
+        Key.Spacebar -> ' '
+        Key.Tab -> '\t'
+        Key.Enter -> '\n'
+        else -> null
+    }
+}
 
 /**
  * The content container for the menu items. This composable handles the positioning and animation
@@ -317,7 +366,22 @@ public fun MenuScope.MenuContent(
                             true
                         }
 
-                        else -> false
+                        else -> {
+
+                            // Convert key events to characters for letter keys
+                            val char = event.getInputChar()
+                            if (char != null) {
+                                // Find first menu item starting with this letter
+                                println("char $char")
+                                val matchingIndex = menuState.labels.indexOfFirst {
+                                    it.lowercase().startsWith(char)
+                                }
+                                if (matchingIndex >= 0) {
+                                    menuState.focusItem(matchingIndex)
+                                    true
+                                } else false
+                            } else false
+                        }
                     }
                 }
             ) {
@@ -371,6 +435,9 @@ public fun MenuScope.MenuItem(
     selectionIndex: Int,
     contents: @Composable RowScope.() -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
+
     LaunchedEffect(Unit) {
         if (menuState.selectedIndex == selectionIndex) {
             menuState.focusItem(menuState.selectedIndex)
@@ -382,7 +449,14 @@ public fun MenuScope.MenuItem(
             menuState.expanded = false
             menuState.currentFocusManager?.clearFocus()
         },
-        modifier = modifier,
+        modifier = modifier.onFocusChanged {
+            println("focus changed ${selectionIndex} ${it.hasFocus}")
+            if (it.hasFocus) {
+                interactionSource.tryEmit(HoverInteraction.Enter())
+            } else {
+                interactionSource.tryEmit(HoverInteraction.Exit(HoverInteraction.Enter()))
+            }
+        },
         enabled = enabled,
         interactionSource = interactionSource,
         indication = indication,
