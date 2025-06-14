@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
@@ -26,6 +29,50 @@ import com.composables.core.*
 import com.composeunstyled.Text
 import kotlinx.coroutines.delay
 
+fun numberToLetter(n: Int): Char {
+    val alphabet = 'A'..'Z'
+    val index = n % alphabet.count()  // alphabet.count() is 26
+    return alphabet.elementAt(index).lowercaseChar()
+}
+
+
+// generate 100 items with a label of their index
+val items = (0..100).map { "${numberToLetter(it)} item $it" }
+
+
+private val Check: ImageVector
+    get() {
+        if (_Check != null) {
+            return _Check!!
+        }
+        _Check = ImageVector.Builder(
+            name = "Check",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(
+                fill = null,
+                fillAlpha = 1.0f,
+                stroke = SolidColor(Color(0xFF000000)),
+                strokeAlpha = 1.0f,
+                strokeLineWidth = 2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+                strokeLineMiter = 1.0f,
+                pathFillType = PathFillType.NonZero
+            ) {
+                moveTo(20f, 6f)
+                lineTo(9f, 17f)
+                lineToRelative(-5f, -5f)
+            }
+        }.build()
+        return _Check!!
+    }
+
+private var _Check: ImageVector? = null
+
 @Composable
 fun DropdownMenuDemo() {
     Box(
@@ -34,11 +81,14 @@ fun DropdownMenuDemo() {
             .padding(vertical = 40.dp),
         contentAlignment = Alignment.TopCenter
     ) {
-        var state = rememberMenuState()
-        LaunchedEffect(Unit) {
-            delay(500)
-            state.expanded = true
-        }
+        val itemCount = items.size
+        val state = rememberMenuState(itemCount, -1)
+
+//        LaunchedEffect(Unit) {
+//            delay(500)
+//            state.expanded = true
+//        }
+
         Menu(state = state) {
             Box(Modifier.width(240.dp)) {
                 MenuButton(
@@ -50,7 +100,7 @@ fun DropdownMenuDemo() {
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            text = "Options",
+                            text = if (state.selectedIndex == -1) "Select an item" else items[state.selectedIndex],
                             style = TextStyle.Default.copy(fontWeight = FontWeight(500))
                         )
                         Spacer(Modifier.width(8.dp))
@@ -75,73 +125,26 @@ fun DropdownMenuDemo() {
                     targetScale = 1f
                 ) + fadeOut(tween(durationMillis = 75))
             ) {
-                MenuItem(
-                    modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp)),
-                    onClick = { /* TODO */ },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                ) {
-                    Image(Maximize, null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Select all", modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp))
-                }
-                HorizontalSeparator(color = Color(0xFFBDBDBD))
-                MenuItem(
-                    modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp)),
-                    onClick = { /* TODO */ },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Image(Copy, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Copy", modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp))
-                }
-                MenuItem(
-                    modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp)),
-                    enabled = false,
-                    onClick = { /* TODO */ },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Image(Scissors, null, colorFilter = ColorFilter.tint(Color(0xFF9E9E9E)))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Cut",
-                        style = TextStyle.Default.copy(color = Color(0xFF9E9E9E)),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)
-                    )
-                }
-                MenuItem(
-                    modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp)),
-                    enabled = false,
-                    onClick = { /* TODO */ },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                items.forEachIndexed { index, item ->
+                    MenuItem(
+                        modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp))
+                            .focusRequester(state.focusRequesters[index]),
+                        onClick = { state.selectedIndex = index },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        selectionIndex = index
                     ) {
-                        Image(Clipboard, null, colorFilter = ColorFilter.tint(Color(0xFF9E9E9E)))
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "Paste",
-                            style = TextStyle.Default.copy(color = Color(0xFF9E9E9E)),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start, modifier = Modifier.fillMaxWidth()) {
+                            if (state.selectedIndex == index) {
+                                // show a checkbox image
+                                Icon(Check, contentDescription = null)
+                            }
+                            Text(item, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp))
+                        }
+
                     }
-                }
-                HorizontalSeparator(color = Color(0xFFBDBDBD))
-                MenuItem(
-                    modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(8.dp)),
-                    onClick = { /* TODO */ }) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(Trash2, null, colorFilter = ColorFilter.tint(Color(0xFFC62828)))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Delete",
-                            style = TextStyle.Default.copy(color = Color(0xFFC62828)),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)
-                        )
+
+                    if (index < itemCount - 1) {
+                        HorizontalSeparator(color = Color(0xFFBDBDBD))
                     }
                 }
             }

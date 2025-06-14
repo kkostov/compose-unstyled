@@ -6,8 +6,12 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,7 +91,7 @@ import com.composeunstyled.NoPadding
 @Composable
 public fun Menu(
     modifier: Modifier = Modifier,
-    state: MenuState = rememberMenuState(),
+    state: MenuState,
     ______deprecated: Unit,
     contents: @Composable MenuScope.() -> Unit
 ) {
@@ -119,16 +123,24 @@ public fun Menu(state: MenuState, modifier: Modifier = Modifier, content: @Compo
 }
 
 @Stable
-public class MenuState(expanded: Boolean = false) {
+public class MenuState(itemCount: Int, selectedIndex: Int, expanded: Boolean = false) {
     public var expanded: Boolean by mutableStateOf(expanded)
     internal val menuFocusRequester = FocusRequester()
     internal var currentFocusManager by mutableStateOf<FocusManager?>(null)
     internal var hasMenuFocus by mutableStateOf(false)
+
+    var focusRequesters = List(itemCount) {  FocusRequester() }
+
+    var selectedIndex by mutableStateOf(selectedIndex)
+
+    fun focusItem(index: Int) {
+        focusRequesters.getOrNull(index)?.requestFocus()
+    }
 }
 
 @Composable
-public fun rememberMenuState(expanded: Boolean = false): MenuState {
-    return remember { MenuState(expanded) }
+public fun rememberMenuState(itemCount: Int, selectedIndex: Int, expanded: Boolean = false): MenuState {
+    return remember { MenuState(itemCount, selectedIndex, expanded) }
 }
 
 /**
@@ -165,7 +177,9 @@ public fun MenuScope.MenuButton(
     contents: @Composable () -> Unit
 ) {
     Button(
-        onClick = { menuState.expanded = menuState.expanded.not() },
+        onClick = {
+            menuState.expanded = menuState.expanded.not()
+                  },
         role = Role.DropdownList,
         enabled = enabled,
         contentColor = contentColor,
@@ -263,6 +277,9 @@ public fun MenuScope.MenuContent(
     expandedState.targetState = menuState.expanded
     menuState.currentFocusManager = LocalFocusManager.current
 
+    val scrollState = rememberScrollState()
+    val state = rememberScrollAreaState(scrollState)
+
     if (expandedState.currentState || expandedState.targetState || !expandedState.isIdle) {
         Popup(
             properties = PopupProperties(
@@ -304,11 +321,22 @@ public fun MenuScope.MenuContent(
                     }
                 }
             ) {
-                Column(modifier.focusRequester(menuState.menuFocusRequester)) {
-                    LaunchedEffect(Unit) {
-                        menuState.menuFocusRequester.requestFocus()
+                ScrollArea(state = state) {
+                    Column(modifier.focusRequester(menuState.menuFocusRequester).verticalScroll(scrollState)) {
+                        LaunchedEffect(Unit) {
+                            menuState.menuFocusRequester.requestFocus()
+                        }
+                        contents()
                     }
-                    contents()
+                    VerticalScrollbar(
+                        modifier = Modifier.align(Alignment.TopEnd).fillMaxHeight()
+                    ) {
+                        Thumb(
+                            modifier = Modifier.background(
+                                Color.Black.copy(0.3f), RoundedCornerShape(100)
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -340,8 +368,14 @@ public fun MenuScope.MenuItem(
     shape: Shape = RectangleShape,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
+    selectionIndex: Int,
     contents: @Composable RowScope.() -> Unit
 ) {
+    LaunchedEffect(Unit) {
+        if (menuState.selectedIndex == selectionIndex) {
+            menuState.focusItem(menuState.selectedIndex)
+        }
+    }
     Button(
         onClick = {
             onClick()
