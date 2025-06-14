@@ -352,11 +352,15 @@ public fun MenuScope.MenuContent(
 
                     return@onKeyEvent when (event.key) {
                         Key.DirectionDown -> {
+                            // for some reason moving focus once is not enough, maybe a container is focusable?
+                            menuState.currentFocusManager!!.moveFocus(FocusDirection.Next)
                             menuState.currentFocusManager!!.moveFocus(FocusDirection.Next)
                             true
                         }
 
                         Key.DirectionUp -> {
+                            // for some reason moving focus once is not enough, maybe a container is focusable?
+                            menuState.currentFocusManager!!.moveFocus(FocusDirection.Previous)
                             menuState.currentFocusManager!!.moveFocus(FocusDirection.Previous)
                             true
                         }
@@ -437,9 +441,8 @@ public fun MenuScope.MenuItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-
     LaunchedEffect(Unit) {
-        if (menuState.selectedIndex == selectionIndex) {
+        if (menuState.selectedIndex == selectionIndex || menuState.selectedIndex == -1 && selectionIndex == 0) {
             menuState.focusItem(menuState.selectedIndex)
         }
     }
